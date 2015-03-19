@@ -28,6 +28,7 @@ except ImportError:
 from boto import dynamodb2
 from boto.dynamodb2.table import Table
 from boto.dynamodb2.items import Item
+from boto.dynamodb2.exceptions import ItemNotFound
 
 handler = logging.StreamHandler(sys.stderr)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
@@ -76,18 +77,18 @@ if request_type != 'Delete':
       else:
         raise FatalError(u"'%s' is not a valid hash from '%s' DynamoDB table." % (hash, table))
     else:
-      exists = amis.has_item(hash=hash,range=int(range),consistent=True)
-      if exists:
+      try:
         item = amis.get_item(hash=hash,range=int(range),consistent=True)
-        ami = item['ami']
-      else:
-        raise FatalError(u"'%s' is not a valid string or '%s' is not a valid range from '%s' DynamoDB table." % (hash, range, table))
+      except ItemNotFound:
+        raise FatalError(u"'%s' is not a valid hash or '%s' is not a valid range from '%s' DynamoDB table." % (hash, range, table))
+
+      ami = item['ami']
 
     # Write out our successful response!
     print u'{ "PhysicalResourceId" : "%s", "Data": { "hash": "%s", "range": "%s", "region": "%s", ' \
           u'"ami": "%s" } }' % (ami, hash, range, region.lower(), ami)
   except Exception, e:
-    raise FatalError(u"Sservice not configured: %s" % (str(e)))
+    raise FatalError(u"Service not configured: %s" % (str(e)))
 else:
   # For Delete return nothing
     print u"{}"
